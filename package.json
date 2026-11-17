@@ -1,0 +1,20 @@
+{
+  "name": "xcraft-launcher",
+  "version": "1.1.5",
+  "description": "X Craft Launcher（XCL）启动器桌面版（Electron 多文件打包）",
+  "author": "X Craft Launcher",
+  "license": "MIT",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "prepare:assets": "node scripts/prepare.mjs",
+    "start": "node scripts/prepare.mjs && electron .",
+    "pack:dir": "node scripts/prepare.mjs && node scripts/pack-eb.cjs --win --x64",
+    "dist": "node scripts/prepare.mjs && node scripts/pack-eb.cjs --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
+    "resedit": "^3.1.0"
+  }
+}

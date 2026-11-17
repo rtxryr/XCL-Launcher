@@ -1,0 +1,59 @@
+# electron-builder 打包配置（多文件目录版）
+# 产物：release2/win-unpacked/X Craft Launcher.exe + 同目录的 dll / resources
+appId: com.xcraft.launcher
+productName: X Craft Launcher
+copyright: Copyright © 2026 X Craft Launcher
+
+directories:
+  # 注意：不要改回 release。旧 release 目录里的 app.asar/default_app.asar
+  # 被系统锁死（EBUSY，疑似杀软过滤驱动持有句柄），electron-builder 清理时
+  # 会对着锁死文件无限重试，表现为"静默卡死"。2026-10-31 已实测绕开。
+  output: release2
+  buildResources: build
+
+# 只打进真正需要的东西（electron 依赖都是 devDependencies，不会进包）
+files:
+  - main.js
+  - preload.js
+  # 自动更新服务（main.js require 的本地模块，漏了会导致打包后启动即崩）
+  - update-service.js
+  # 安装程序式更新器（update-service.js require；漏了同样启动即崩）
+  - update-installer.js
+  - ui/**
+  - core/**
+  - package.json
+
+# 用 asar 打包业务代码；core/ 里的 node_modules 一起进 asar，require 解析不受影响
+asar: true
+
+# 压缩等级：安装包用最高压缩（1.0.5 的 108MB 就来自这里）
+compression: maximum
+
+win:
+  # 应用图标（1536x1536 PNG，electron-builder 会自动生成多尺寸 ico）
+  icon: build/icon.png
+  target:
+    - target: dir
+      arch:
+        - x64
+  artifactName: X-Craft-Launcher-${version}-${arch}.${ext}
+
+# 目录版不需要安装程序/签名
+npmRebuild: false
+
+# ---------------------------------------------------------------------------
+# 安装程序（NSIS）：与 1.0.5 保持一致 —— 手动向导、可改安装位置、保留卸载入口
+# 打安装包：node scripts/pack-eb.cjs --win nsis --x64
+# ---------------------------------------------------------------------------
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: X Craft Launcher
+  uninstallDisplayName: X Craft Launcher
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  artifactName: X-Craft-Launcher-Setup-${version}.${ext}
