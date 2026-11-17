@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check Node sources
+        shell: bash
+        run: |
+          set -e
+          for f in main.js preload.js update-service.js update-installer.js; do
+            node --check "$f"
+          done
+          find scripts ui/patch core-extra -type f -name '*.js' -print0 | while IFS= read -r -d '' f; do
+            node --check "$f"
+          done
+          find scripts -type f -name '*.cjs' -print0 | while IFS= read -r -d '' f; do
+            node --check "$f"
+          done
+          node --check scripts/prepare.mjs
+
+      - name: Validate patch order and references
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("fs");
+            const files = fs.readdirSync("ui/patch").filter(f => /^\d+-.*\.js$/.test(f));
+            const nums = files.map(f => parseInt(f, 10));
+            if (new Set(nums).size !== nums.length) throw new Error("duplicate patch number");
+            const ordered = [...files].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+            const html = fs.readFileSync("ui/index.html", "utf8");
+            let last = -1;
+            for (const f of ordered) {
+              if (!html.includes("patch/" + f)) throw new Error("missing reference: " + f);
+              const at = html.indexOf("patch/" + f);
+              if (at < last) throw new Error("wrong reference order: " + f);
+              last = at;
+            }
+            console.log("patches ok:", files.length);
+          '
