@@ -38,14 +38,27 @@ jobs:
             const files = fs.readdirSync("ui/patch").filter(f => /^\d+-.*\.js$/.test(f));
             const nums = files.map(f => parseInt(f, 10));
             if (new Set(nums).size !== nums.length) throw new Error("duplicate patch number");
-            const ordered = [...files].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+
+            /* 只认真正的 <script src="patch/xxx.js"> 标签。
+               之前用 indexOf("patch/" + f) 全文搜，正文注释里出现的
+               "ui/patch/250-snapshot.js" 会先命中，导致顺序校验误报。 */
             const html = fs.readFileSync("ui/index.html", "utf8");
-            let last = -1;
-            for (const f of ordered) {
-              if (!html.includes("patch/" + f)) throw new Error("missing reference: " + f);
-              const at = html.indexOf("patch/" + f);
-              if (at < last) throw new Error("wrong reference order: " + f);
-              last = at;
+            const re = /<script\s+src="patch\/([^"]+\.js)"/g;
+            const refs = [];
+            let m;
+            while ((m = re.exec(html)) !== null) refs.push(m[1]);
+
+            const dup = refs.filter((f, i) => refs.indexOf(f) !== i);
+            if (dup.length) throw new Error("duplicate reference: " + dup.join(", "));
+
+            const ordered = [...files].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+            if (refs.length !== ordered.length) {
+              throw new Error("reference count mismatch: " + refs.length + " refs vs " + ordered.length + " files");
+            }
+            for (let i = 0; i < ordered.length; i++) {
+              if (refs[i] !== ordered[i]) {
+                throw new Error("wrong reference order: expected " + ordered[i] + " but got " + refs[i]);
+              }
             }
             console.log("patches ok:", files.length);
           '

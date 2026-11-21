@@ -3,8 +3,8 @@
  *
  * 开启后：
  *   主进程每 20s 看一次可用内存，低于阈值（<10% 且 <1.2GB）推一条 mem:alarm；
- *   界面弹窗列出「空闲且占用较低」的后台进程供勾选（默认只勾后台辅助进程），
- *   用户确认后结束所选进程，回收后在右下角提示本次释放了多少内存。
+ *   右下角浮出一张单层卡片列出「空闲且占用较低」的后台进程（默认全不勾，由用户自己选），
+ *   清理后同一张卡片原地变结果，几秒后自动消失 —— 全程只有一层，无需逐层关闭。
  *
  * 安全约定：
  *   - 系统进程、启动器自身、正在运行的游戏（java/javaw）永不入列；
@@ -20,6 +20,7 @@
   var doc = document;
   var LS = 'mc.memOpt';
   var MODAL_ID = 'm265Modal';
+  var LS_SNOOZE = 'mc.memOptSnooze';   /* 用户选「1 小时内不提醒」的时间戳 */
   var CARD_ID = 'm265Card';
 
   function $(s, r) { return (r || doc).querySelector(s); }
@@ -59,42 +60,57 @@
       '#m265Card .m265-bar{flex:1 1 120px;min-width:90px;height:5px;border-radius:999px;background:var(--panel-3,rgba(255,255,255,.08));overflow:hidden}',
       '#m265Card .m265-bar i{display:block;height:100%;width:0;border-radius:999px;background:var(--accent);transition:width .4s ease}',
 
-      '.m265-mask{position:fixed;inset:0;z-index:965;display:grid;place-items:center;padding:24px;',
-      '  background:rgba(6,12,10,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}',
-      '.m265-mask[hidden]{display:none}',
-      '.m265-dlg{width:min(560px,100%);max-height:86vh;display:flex;flex-direction:column;border-radius:var(--r-xl);padding:22px 24px 18px;',
-      '  color:var(--txt);background:linear-gradient(165deg,var(--glass-a),var(--glass-b)),var(--panel-2);',
-      '  border:1px solid var(--stroke);box-shadow:0 40px 90px -40px var(--shadow-2)}',
-      '.m265-dlg h3{margin:0 0 6px;font-size:16px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}',
-      '.m265-dlg h3 svg{width:19px;height:19px;color:#e0a34a;flex:0 0 auto}',
-      '.m265-dlg .m265-sub{margin:0 0 12px;font-size:11.5px;color:var(--txt-3);line-height:1.7}',
-      '.m265-list{flex:1 1 auto;overflow:auto;margin:0 0 12px;padding:4px;border-radius:var(--r-m);',
-      '  background:var(--panel-3,rgba(255,255,255,.04));border:1px solid var(--stroke);max-height:290px}',
-      '.m265-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-s);cursor:pointer;',
-      '  transition:background .16s}',
+      /* ---------- 单层浮卡（替代「遮罩弹窗 + 结果 toast」两层） ---------- */
+      '@keyframes m265PopIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}',
+      '.m265-pop{position:fixed;right:20px;bottom:20px;z-index:980;width:min(318px,calc(100vw - 40px));',
+      '  padding:14px 15px 13px;border-radius:18px;color:var(--txt);',
+      '  background:linear-gradient(165deg,var(--glass-a),var(--glass-b)),var(--panel-2);',
+      '  border:1px solid var(--stroke);box-shadow:0 30px 70px -34px var(--shadow-2);',
+      '  backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);',
+      '  animation:m265PopIn .34s cubic-bezier(.2,1.1,.4,1) both}',
+      '.m265-pop.out{opacity:0;transform:translateY(8px);transition:opacity .26s ease,transform .26s ease;pointer-events:none}',
+      '.m265-hd{display:flex;align-items:flex-start;gap:9px}',
+      '.m265-hd svg{width:18px;height:18px;flex:0 0 auto;margin-top:1px;color:#e0a34a}',
+      '.m265-hd.ok svg{color:var(--accent)}',
+      '.m265-hd b{display:block;font-size:13.5px;font-weight:650;letter-spacing:-.01em}',
+      '.m265-hd span{display:block;margin-top:2px;font-size:11px;color:var(--txt-3);',
+      '  font-variant-numeric:tabular-nums;line-height:1.55}',
+      '.m265-lvl{margin:10px 0 0;height:5px;border-radius:999px;background:var(--panel-3,rgba(255,255,255,.08));overflow:hidden}',
+      '.m265-lvl i{display:block;height:100%;border-radius:999px;background:#e0a34a;transition:width .45s ease}',
+      '.m265-sum{margin:9px 0 0;font-size:11px;line-height:1.5;color:var(--txt-3)}',
+      '.m265-sum b{color:var(--txt-2);font-weight:600;font-variant-numeric:tabular-nums}',
+      '.m265-rows{margin:10px 0 0;max-height:162px;overflow:auto;border-radius:12px;',
+      '  background:var(--panel-3,rgba(255,255,255,.04));border:1px solid var(--stroke)}',
+      '.m265-row{display:flex;align-items:center;gap:9px;padding:6px 9px;cursor:pointer;transition:background .16s}',
       '.m265-row:hover{background:var(--panel-2)}',
-      '.m265-row input{appearance:none;width:15px;height:15px;flex:0 0 auto;border-radius:5px;cursor:pointer;',
-      '  border:1.6px solid var(--stroke);background:var(--panel-2);position:relative;transition:background .16s,border-color .16s}',
+      '.m265-row input{appearance:none;width:14px;height:14px;flex:0 0 auto;border-radius:4.5px;cursor:pointer;',
+      '  border:1.5px solid var(--stroke);background:var(--panel-2);position:relative;transition:background .16s,border-color .16s}',
       '.m265-row input:checked{background:var(--accent);border-color:transparent}',
-      '.m265-row input:checked::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;',
-      '  border:2px solid var(--on-accent,#08120e);border-top:0;border-left:0;transform:rotate(42deg)}',
-      '.m265-row .n{flex:1 1 auto;min-width:0;font-size:12px;color:var(--txt-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.m265-row .m{font-size:11px;color:var(--txt-3);font-variant-numeric:tabular-nums}',
-      '.m265-row .tag{font-size:9.5px;padding:1px 6px;border-radius:999px;color:var(--accent);',
+      '.m265-row input:checked::after{content:"";position:absolute;left:3.6px;top:.6px;width:3.6px;height:7.4px;',
+      '  border:1.9px solid var(--on-accent,#08120e);border-top:0;border-left:0;transform:rotate(42deg)}',
+      '.m265-row .n{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--txt-2);overflow:hidden;',
+      '  text-overflow:ellipsis;white-space:nowrap}',
+      '.m265-row .m{font-size:10.5px;color:var(--txt-3);font-variant-numeric:tabular-nums}',
+      '.m265-row .tag{font-size:9px;padding:1px 5px;border-radius:999px;color:var(--accent);',
       '  background:var(--accent-soft,rgba(120,200,160,.14))}',
-      '.m265-empty{padding:22px 10px;text-align:center;font-size:12px;color:var(--txt-3)}',
-      '.m265-foot{display:flex;align-items:center;gap:10px;justify-content:flex-end}',
-      '.m265-foot .m265-hint{margin-right:auto;font-size:11px;color:var(--txt-3)}',
-      '.m265-dlg button{padding:8px 18px;border-radius:var(--r-pill);font-size:12.5px;cursor:pointer;',
+      '.m265-ft{display:flex;align-items:center;gap:8px;margin-top:11px}',
+      '.m265-ft .m265-ghost{margin-right:auto;padding:4px 2px;border:none;background:none;cursor:pointer;',
+      '  font-size:11px;color:var(--txt-3);transition:color .18s}',
+      '.m265-ft .m265-ghost:hover{color:var(--txt-2)}',
+      '.m265-ft button{padding:7px 14px;border-radius:999px;font-size:12px;cursor:pointer;',
       '  border:1px solid var(--stroke);background:var(--panel-2);color:var(--txt-2);transition:color .2s,filter .2s}',
-      '.m265-dlg button:hover{color:var(--txt)}',
-      '.m265-dlg button.m265-primary{background:var(--accent);border-color:transparent;color:var(--on-accent,#08120e);font-weight:600}',
-      '.m265-dlg button[disabled]{opacity:.45;pointer-events:none}',
+      '.m265-ft button:hover{color:var(--txt)}',
+      '.m265-ft button.m265-primary{background:var(--accent);border-color:transparent;',
+      '  color:var(--on-accent,#08120e);font-weight:600}',
+      '.m265-ft button[disabled]{opacity:.45;pointer-events:none}',
+      'html[data-motion="off"] .m265-pop{animation:none}',
       '.m265-toast{position:fixed;right:22px;bottom:22px;z-index:9999;padding:11px 18px;border-radius:var(--r-m);',
       '  background:var(--panel-2);color:var(--txt);border:1px solid var(--stroke);font-size:12.5px;',
       '  box-shadow:0 20px 44px -24px var(--shadow-2);max-width:340px;line-height:1.6}',
       '.m265-toast.ok{border-color:color-mix(in srgb,var(--accent) 45%,transparent)}',
-      '.m265-toast.bad{border-color:#e0705f66}'
+      '.m265-toast.bad{border-color:#e0705f66}',
+      /* 提示卡出现时，右下角工具栏让位，避免两个浮层叠在一起 */
+      'body.m265-holding #m200Dock{opacity:0;pointer-events:none;transition:opacity .2s ease}'
     ].join('\n');
     var st = doc.createElement('style');
     st.id = 'patch-265-style';
@@ -133,7 +149,7 @@
         '<span id="m265State">未开启</span>' +
       '</div>' +
       '<p class="m265-src" style="font-size:11px;color:var(--txt-3);line-height:1.65;margin:8px 0 0">' +
-        '只在内存紧张时弹窗询问，不会自行结束任何进程；系统进程、启动器本身和正在运行的游戏永远不会被列入清理范围。' +
+        '只在内存紧张时在右下角问一次，不会自行结束任何进程；系统进程、启动器本身和正在运行的游戏永远不会被列入清理范围。' +
       '</p>';
 
     /* 放在性能页最上方，与其它卡保持同一节奏 */
@@ -184,8 +200,58 @@
     });
   }
 
-  /* ---------------- 告警弹窗 ---------------- */
+  /* ---------------- 告警浮卡（单层：清理后原地变结果并自动消失） ---------------- */
   var alarmShowing = false;
+  var cardEl = null;
+
+  function motionOn() { return doc.documentElement.dataset.motion !== 'off'; }
+
+  function holdDock(on) {
+    /* 提示卡占的就是右下角，直接把工具栏淡出，避免两个浮层叠在一起 */
+    try { doc.body.classList.toggle('m265-holding', !!on); } catch (e) {}
+    var dock = doc.getElementById('m200Dock');
+    if (dock) {
+      dock.style.transition = 'opacity .2s ease';
+      dock.style.opacity = on ? '0' : '';
+      dock.style.pointerEvents = on ? 'none' : '';
+    }
+  }
+
+  function dismissCard(wait) {
+    if (!cardEl) return;
+    var el = cardEl;
+    cardEl = null;
+    alarmShowing = false;
+    holdDock(false);
+    if (!wait) { el.remove(); return; }
+    el.classList.add('out');
+    setTimeout(function () { el.remove(); }, 280);
+  }
+
+  function snooze(ms) {
+    try { localStorage.setItem(LS_SNOOZE, String(Date.now() + ms)); } catch (e) {}
+  }
+
+  function headIcon() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M12 3.2 20.4 18H3.6L12 3.2Z"/><path d="M12 9.4v4.2"/>' +
+      '<circle cx="12" cy="16.1" r=".9" fill="currentColor"/></svg>';
+  }
+
+  function showResult(freedMB, killedN) {
+    if (!cardEl) return;
+    cardEl.innerHTML =
+      '<div class="m265-hd ok">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+        'stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/>' +
+        '<path d="m8.4 12.3 2.5 2.5 4.7-4.9"/></svg>' +
+        '<div><b>' + (freedMB > 0 ? '已释放 ' + mbText(freedMB) : '已清理 ' + killedN + ' 个进程') + '</b>' +
+        '<span>关闭了 ' + killedN + ' 个空闲进程，回收会逐步生效</span></div>' +
+      '</div>';
+    setTimeout(function () { dismissCard(true); }, motionOn() ? 4200 : 5200);
+    poll();
+  }
 
   function showAlarm(info) {
     if (alarmShowing) return;
@@ -193,102 +259,128 @@
     try { enabled = localStorage.getItem(LS) === 'on'; } catch (e) {}
     if (!enabled) return;
 
+    var until = 0;
+    try { until = Number(localStorage.getItem(LS_SNOOZE)) || 0; } catch (e) {}
+    if (until > Date.now()) return;
+
     alarmShowing = true;
     injectCss();
 
-    var mask = doc.getElementById(MODAL_ID);
-    if (mask) mask.remove();
+    var freeMB = Number(info && info.freeMB) || 0;
+    var totalMB = Number(info && info.totalMB) || 0;
+    var pct = totalMB > 0 ? Math.max(2, Math.min(100, Math.round((freeMB / totalMB) * 100))) : 0;
 
-    mask = doc.createElement('div');
-    mask.className = 'm265-mask';
-    mask.id = MODAL_ID;
-    mask.innerHTML =
-      '<div class="m265-dlg" role="dialog" aria-modal="true" aria-label="内存不足">' +
-        '<h3>' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
-          '<path d="M12 3.2 20.4 18H3.6L12 3.2Z"/><path d="M12 9.4v4.2"/><circle cx="12" cy="16.1" r=".9" fill="currentColor"/></svg>' +
-          '可用内存不多了' +
-        '</h3>' +
-        '<p class="m265-sub">' +
-          '当前可用 <b>' + esc(mbText(info && info.freeMB)) + '</b>，总共 ' + esc(mbText(info && info.totalMB)) + '。' +
-          '要不要关掉几个空闲的后台程序，把内存腾出来？<br>只关你勾选的，系统进程和正在运行的游戏不会动。' +
-        '</p>' +
-        '<div class="m265-list" id="m265List"><div class="m265-empty">正在看看谁在占内存…</div></div>' +
-        '<div class="m265-foot">' +
-          '<span class="m265-hint" id="m265Sum"></span>' +
-          '<button type="button" data-act="cancel">暂不清理</button>' +
-          '<button type="button" class="m265-primary" data-act="ok" disabled>清理所选</button>' +
-        '</div>' +
+    var el = doc.createElement('div');
+    el.className = 'm265-pop';
+    el.setAttribute('role', 'alertdialog');
+    el.setAttribute('aria-label', '可用内存偏低');
+    el.innerHTML =
+      '<div class="m265-hd">' + headIcon() +
+        '<div><b>可用内存偏低</b>' +
+        '<span>可用 ' + esc(mbText(freeMB)) + ' / ' + esc(mbText(totalMB)) + ' · 剩 ' + pct + '%</span></div>' +
+      '</div>' +
+      '<div class="m265-lvl"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="m265-sum" id="m265Sum">正在检查空闲进程…</div>' +
+      '<div class="m265-rows" id="m265Rows"><div class="m265-row"><span class="n">正在看看谁在占内存…</span></div></div>' +
+      '<div class="m265-ft">' +
+        '<button type="button" class="m265-ghost" data-act="snooze">1 小时内不提醒</button>' +
+        '<button type="button" class="m265-primary" data-act="ok" disabled>清理所选</button>' +
       '</div>';
-    doc.body.appendChild(mask);
 
-    var listEl = mask.querySelector('#m265List');
-    var okBtn = mask.querySelector('[data-act="ok"]');
-    var sumEl = mask.querySelector('#m265Sum');
+    doc.body.appendChild(el);
+    cardEl = el;
+    holdDock(true);
 
-    function close() {
-      alarmShowing = false;
-      mask.remove();
-    }
+    var rowsEl = el.querySelector('#m265Rows');
+    var okBtn = el.querySelector('[data-act="ok"]');
 
-    function refreshSum() {
-      var boxes = mask.querySelectorAll('.m265-row input:checked');
-      var sum = 0;
-      for (var i = 0; i < boxes.length; i++) sum += Number(boxes[i].getAttribute('data-mb')) || 0;
-      if (sumEl) sumEl.textContent = boxes.length ? boxes.length + ' 项 · 约 ' + mbText(sum) : '未选择';
-      if (okBtn) okBtn.disabled = boxes.length === 0;
+    function syncBtn() {
+      var boxes = el.querySelectorAll('.m265-row input:checked');
+      if (!okBtn) return;
+      okBtn.disabled = boxes.length === 0;
+      okBtn.textContent = boxes.length ? '清理 ' + boxes.length + ' 项' : '清理所选';
     }
 
     bridge('mem:candidates', {}).then(function (r) {
       var rows = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
+      /* 后端返回的是 memMB，旧代码读的 mb 一直取不到值（列表里全是 0 MB） */
+      rows = rows.map(function (x) {
+        return { pid: x.pid, name: x.name, mb: Number(x.memMB != null ? x.memMB : x.mb) || 0 };
+      });
+
+      var sumEl = el.querySelector('#m265Sum');
       if (!rows.length) {
-        listEl.innerHTML = '<div class="m265-empty">没有找到可以安全关闭的空闲后台程序</div>';
-        refreshSum();
+        if (sumEl) sumEl.textContent = '没有可安全清理的空闲进程';
+        rowsEl.innerHTML = '<div class="m265-row"><span class="n" style="color:var(--txt-3)">' +
+          '先关掉几个不用的窗口，比清理更有效</span></div>';
+        if (okBtn) okBtn.style.display = 'none';
+        setTimeout(function () { dismissCard(true); }, motionOn() ? 8000 : 10000);
         return;
       }
-      listEl.innerHTML = rows.map(function (x) {
+
+      var total = 0;
+      rowsEl.innerHTML = rows.map(function (x) {
+        total += x.mb;
         return '<label class="m265-row">' +
-          '<input type="checkbox" data-pid="' + x.pid + '" data-mb="' + x.mb + '"' + (x.safe ? ' checked' : '') + '>' +
+          '<input type="checkbox" data-pid="' + x.pid + '" data-mb="' + x.mb + '">' +
           '<span class="n">' + esc(x.name) + '</span>' +
-          (x.safe ? '<span class="tag">建议</span>' : '') +
           '<span class="m">' + esc(mbText(x.mb)) + '</span>' +
         '</label>';
       }).join('');
-      listEl.addEventListener('change', refreshSum);
-      refreshSum();
+      if (sumEl) {
+        sumEl.innerHTML = '找到 <b>' + rows.length + '</b> 个空闲进程，全清理约 <b>' + esc(mbText(total)) + '</b>';
+      }
+      rowsEl.addEventListener('change', syncBtn);
+      syncBtn();
     });
 
-    mask.addEventListener('click', function (e) {
-      if (e.target === mask) { close(); return; }
+    el.addEventListener('click', function (e) {
       var b = e.target.closest && e.target.closest('[data-act]');
       if (!b) return;
-      var act = b.getAttribute('data-act');
-      if (act === 'cancel') { close(); return; }
-      if (act === 'ok') {
-        var boxes = mask.querySelectorAll('.m265-row input:checked');
-        var pids = [];
-        for (var i = 0; i < boxes.length; i++) pids.push(Number(boxes[i].getAttribute('data-pid')));
-        if (!pids.length) return;
-        okBtn.disabled = true;
-        okBtn.textContent = '正在清理…';
-        bridge('mem:cleanup', { pids: pids }).then(function (res) {
-          close();
-          if (!res || !res.ok) { toast('清理失败：' + ((res && res.error) || '未知错误'), 'bad'); return; }
-          var d = res.data || {};
-          var n = (d.killed || []).length;
-          if (n === 0) {
-            toast('没有可清理的进程（可能已经退出了）', 'bad');
-            return;
-          }
-          var freed = d.freedMB || 0;
-          var text = freed > 0
-            ? '已清理 ' + n + ' 个后台进程，本次释放 ' + mbText(freed) + ' 内存'
-            : '已清理 ' + n + ' 个后台进程（释放量较小，系统会继续回收）';
-          toast(text, 'ok');
-          poll();
-        });
+
+      if (b.getAttribute('data-act') === 'snooze') {
+        snooze(60 * 60 * 1000);
+        dismissCard(true);
+        return;
       }
+      if (b.getAttribute('data-act') !== 'ok') return;
+
+      var boxes = el.querySelectorAll('.m265-row input:checked');
+      var pids = [];
+      for (var i = 0; i < boxes.length; i++) pids.push(Number(boxes[i].getAttribute('data-pid')));
+      if (!pids.length) return;
+
+      okBtn.disabled = true;
+      okBtn.textContent = '正在清理…';
+
+      bridge('mem:cleanup', { pids: pids }).then(function (res) {
+        if (!res || !res.ok) {
+          if (!cardEl) return;
+          cardEl.innerHTML = '<div class="m265-hd">' + headIcon() +
+            '<div><b>清理没成功</b><span>' + esc((res && res.error) || '未知错误') + '</span></div></div>';
+          setTimeout(function () { dismissCard(true); }, 3800);
+          return;
+        }
+        var d = res.data || {};
+        var n = (d.killed || []).length;
+        if (!n) {
+          if (!cardEl) return;
+          cardEl.innerHTML = '<div class="m265-hd">' + headIcon() +
+            '<div><b>没有可以清理的进程</b><span>它们可能已经自己退出了</span></div></div>';
+          setTimeout(function () { dismissCard(true); }, 3200);
+          return;
+        }
+        showResult(d.freedMB || 0, n);
+      });
     });
+
+    /* 一直没人理就先收起来，别在右下角杵着 */
+    var touched = false;
+    el.addEventListener('click', function () { touched = true; }, true);
+    el.addEventListener('change', function () { touched = true; }, true);
+    setTimeout(function () {
+      if (cardEl === el && !touched) dismissCard(true);
+    }, 18000);
   }
 
   /* ---------------- 订阅主进程告警 ---------------- */

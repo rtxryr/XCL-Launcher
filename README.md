@@ -2,7 +2,7 @@
 
 > 把折腾，留给启动器。把世界，留给你。
 
-[![version](https://img.shields.io/badge/version-1.1.5-54E6B0?style=flat-square)](https://github.com/rtxryr/XCL-Launcher/releases)
+[![version](https://img.shields.io/badge/version-1.1.7-54E6B0?style=flat-square)](https://github.com/rtxryr/XCL-Launcher/releases)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-70D6FF?style=flat-square)](#)
 [![license](https://img.shields.io/badge/license-MIT-A68CF9?style=flat-square)](LICENSE)
 

@@ -400,8 +400,10 @@
   var SVG = {
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
            'stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.6 4.3 4.3L19 7"/></svg>',
-    logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
-          'stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 5.2 18.8 18.8M18.8 5.2 5.2 18.8"/></svg>',
+    logo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+          'stroke-linecap="round" stroke-linejoin="round">' +
+          '<path d="M12 2.9 20.3 7.7v8.6L12 21.1 3.7 16.3V7.7Z"/>' +
+          '<path d="M12 12 3.7 7.7M12 12l8.3-4.3M12 12v9.1" opacity=".85"/></svg>',
     spark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
            'stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4v4.3M12 16.3v4.3M3.4 12h4.3M16.3 12h4.3"/>' +
            '<path d="m6.4 6.4 2.5 2.5M15.1 15.1l2.5 2.5M17.6 6.4l-2.5 2.5M8.9 15.1l-2.5 2.5"/></svg>',

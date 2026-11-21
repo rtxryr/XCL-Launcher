@@ -1,6 +1,6 @@
 {
   "name": "xcraft-launcher",
-  "version": "1.1.5",
+  "version": "1.1.7",
   "description": "X Craft Launcher（XCL）启动器桌面版（Electron 多文件打包）",
   "author": "X Craft Launcher",
   "license": "MIT",

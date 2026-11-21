@@ -4329,8 +4329,10 @@ html.wb-on .nt-bns{top:calc(var(--wbar-h) + 14px)}
     <div class="rail-head">
       <div class="logo">
         <svg viewBox="0 0 24 24" fill="none">
-          <path d="M4.7 4.5 19.3 19.5M19.3 4.5 4.7 19.5"
-                stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+          <path d="M12 2.9 20.3 7.7v8.6L12 21.1 3.7 16.3V7.7Z"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M12 12 3.7 7.7M12 12l8.3-4.3M12 12v9.1"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
         </svg>
       </div>
       <div class="rail-brand"><b>X Craft</b><span>Launcher</span></div>
@@ -5751,7 +5753,7 @@ html.wb-on .nt-bns{top:calc(var(--wbar-h) + 14px)}
           <div class="glass upd-card">
             <div class="upd-cur">
               <span class="upd-cur-t">当前版本</span>
-              <b id="updCurVer">v1.1.5</b>
+              <b id="updCurVer">v1.1.7</b>
               <span class="upd-when">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -5791,14 +5793,16 @@ html.wb-on .nt-bns{top:calc(var(--wbar-h) + 14px)}
           <div class="glass ab-hero">
             <span class="ab-logo" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
-                <path d="M4.7 4.5 19.3 19.5M19.3 4.5 4.7 19.5"
-                      stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                <path d="M12 2.9 20.3 7.7v8.6L12 21.1 3.7 16.3V7.7Z"
+                      stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M12 12 3.7 7.7M12 12l8.3-4.3M12 12v9.1"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
               </svg>
             </span>
             <div class="ab-id">
               <b>X Craft Launcher</b>
               <span class="ab-sub">我的世界启动器</span>
-              <span class="ab-ver" id="aboutVer">v1.1.5</span>
+              <span class="ab-ver" id="aboutVer">v1.1.7</span>
             </div>
           </div>
 
@@ -7415,10 +7419,30 @@ html.wb-on .nt-bns{top:calc(var(--wbar-h) + 14px)}
   };
 
   /* ---------- 设置分页 ---------- */
-  const ABOUT_VERSION = '1.1.5';   /* 与 desktop-app/package.json 的 version 保持一致 */
+  const ABOUT_VERSION = '1.1.7';   /* 与 desktop-app/package.json 的 version 保持一致 */
 
   /* ---------- 更新日志（从新到旧；发版时在这里补一条） ---------- */
   const CHANGELOG = [
+    {
+      ver: '1.1.7', date: '2026-11-21',
+      items: [
+        '外观设置新增「图标」：启动器图标可以单独配色了。标题栏、侧栏、关于页和新手引导里用的是同一枚图标，改了颜色处处一起变。',
+        '默认「跟随主题」，换配色方案时图标自动跟着走；选「自定义」之后就不再受主题影响，可以直接点经典绿、蔚蓝、浅蓝、雪白、石墨、经典橙、薰衣草这七个色块，也可以用取色器挑任意颜色。',
+        '图标图形给了三款，随时切：棱面（顶面填一层同色，体积感强，缩到小尺寸也认得出）、镂空（大立方体里嵌一枚小立方体）、线性（纯描边的等轴方块）。三款都是矢量，放大到壁纸尺寸也不会有锯齿。',
+        '标题栏左上角那枚图标原来是固定颜色的位图，跟界面配色对不上，这次换成同一套矢量图形，跟着图标设置一起变色。'
+      ]
+    },
+    {
+      ver: '1.1.6', date: '2026-11-19',
+      items: [
+        '右下角改成快捷工具栏：原来那个「+」按钮撤掉了。加号的意思是「新建」，可点开只有回到顶部、命令面板、打包诊断三件事，跟新建没关系，容易误导。现在改成一组常驻的快捷按钮，不用先展开再点，位置也更窄，不再大面积压住正文。',
+        '悬停提示不会再叠在一起：以前每个按钮各带一条提示，位置都固定在按钮右侧，按钮沿弧线排开时三条提示会互相压住。现在整组只用一个提示条，鼠标停在哪个按钮上就挪到哪个按钮左边，同一个时刻只有一条，结构上不可能重叠。',
+        '命令面板的图标重画：原来那张图标弧线太密，缩到 17px 会糊成一条线。换成「面板 + 两行条目」，小尺寸下也能看出是列表。',
+        '换了一个新标识：削掉一个角的方块里嵌一个 X ——方块对应 craft，X 对应名字。侧栏左上角与设置里的「关于」用的是同一个标识，两处样式一致。',
+        '内存提示从两层压成一层：以前是先用弹窗列出能关的进程，清理完关掉弹窗，右下角再弹一条「已释放多少」，要关两次。现在只在右下角浮出一张卡，清理后同一张卡原地变成结果，几秒后自己消失；暂时不想动就点「1 小时内不提醒」，这一小时内不再打扰。清理范围没有变化：系统进程、启动器本身和正在运行的游戏永远不在列表里。',
+        '性能设置新增「实时性能」：页面顶部多一张卡，CPU 与内存各一条 60 秒曲线，数字与曲线同步刷新。只在这个面板看得见的时候采样，切到别的页面、窗口最小化都立即停止，不后台空转；曲线做过平滑处理，卡底写明了它是用来看趋势的，不等于瞬时真值。'
+      ]
+    },
     {
       ver: '1.1.5', date: '2026-11-16',
       items: [
@@ -9228,7 +9252,7 @@ html.wb-on .nt-bns{top:calc(var(--wbar-h) + 14px)}
      —— 侧栏「通知」页 / 全屏通知 / 横幅通知 / 未读红点
      —— 一切网络失败静默降级为「无通知」，控制台不抛未捕获异常
      ========================================================================== */
-  const NT_VERSION = '1.1.5';
+  const NT_VERSION = '1.1.7';
   const NT_SVG_BELL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.6a6 6 0 1 0-12 0c0 5.2-2 6.6-2 6.6h16s-2-1.4-2-6.6Z"/><path d="M13.7 19a2 2 0 0 1-3.4 0"/></svg>';
   const NT_SVG_INFO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 10.7v5.9M12 7.5v.1"/></svg>';
   const NT_SVG_UP   = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19.2V6.6"/><path d="m7.2 11.4 4.8-4.8 4.8 4.8"/></svg>';
@@ -15690,6 +15714,8 @@ if (!window.FMBridge) {
 <script src="patch/250-snapshot.js" data-patch="250"></script>
 <script src="patch/260-beta.js" data-patch="260"></script>
 <script src="patch/265-memopt.js" data-patch="265"></script>
+<script src="patch/266-perf-live.js" data-patch="266"></script>
+<script src="patch/267-icon.js" data-patch="267"></script>
 <!-- ===== /ui/patch ===== -->
 </body>
 </html>

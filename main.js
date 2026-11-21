@@ -154,6 +154,63 @@ const memWatcher = memopt.createWatcher({
   },
 });
 
+// ---------------------------------------------------------------------------
+// 实时性能：整机 CPU / 内存瞬时值（只给「性能设置 → 实时预览」用）
+//
+// 口径说明（界面上的小字与这里一致）：
+//   - CPU 用 os.cpus() 的 idle/total 两次采样差值算，第一次调用没有上一次基线，
+//     返回 null，由前端沿用上一帧，不会出现 0% 的假读数。
+//   - 内存直接用 process.getSystemMemoryInfo()（KB），不拉起 PowerShell，
+//     面板每秒一次也不会带来可见开销。
+// ---------------------------------------------------------------------------
+let perfCpuBase = null;
+
+function perfCpuPercent() {
+  let idle = 0;
+  let total = 0;
+  for (const c of os.cpus() || []) {
+    const t = (c && c.times) || {};
+    idle += Number(t.idle) || 0;
+    total += (Number(t.user) || 0) + (Number(t.nice) || 0) + (Number(t.sys) || 0) +
+      (Number(t.irq) || 0) + (Number(t.idle) || 0);
+  }
+  const base = perfCpuBase;
+  perfCpuBase = { idle, total };
+  if (!base || total <= base.total) return null;
+  const dTotal = total - base.total;
+  const dIdle = idle - base.idle;
+  if (dTotal <= 0) return null;
+  const pct = (1 - dIdle / dTotal) * 100;
+  return Math.max(0, Math.min(100, Math.round(pct * 10) / 10));
+}
+
+function perfSnapshot() {
+  let totalMB = 0;
+  let freeMB = 0;
+  try {
+    const mi = typeof process.getSystemMemoryInfo === 'function' ? process.getSystemMemoryInfo() : null;
+    if (mi) {
+      totalMB = Math.round((mi.total || 0) / 1024);
+      freeMB = Math.round((mi.free || 0) / 1024);
+    }
+  } catch {
+    /* 拿不到就走下面的兜底 */
+  }
+  if (!totalMB) {
+    const last = memWatcher && typeof memWatcher.status === 'function' ? memWatcher.status() : null;
+    if (last && last.totalMB) {
+      totalMB = last.totalMB;
+      freeMB = last.freeMB;
+    }
+  }
+  return {
+    at: Date.now(),
+    cpu: perfCpuPercent(),
+    memFreeMB: freeMB,
+    memTotalMB: totalMB,
+  };
+}
+
 function logError(scope, err) {
   const line = `[${new Date().toISOString()}] ${scope}: ${
     err && err.stack ? err.stack : String(err)
@@ -982,6 +1039,14 @@ async function initBackend() {
     }
 
     // 内存优化：状态 / 候选进程 / 执行清理 / 开关注册监控
+    // 实时性能预览：整机 CPU / 内存瞬时值（性能设置页打开时才被调用）
+    if (channel === 'sys:perf') {
+      try {
+        return { ok: true, data: perfSnapshot() };
+      } catch (e) {
+        return { ok: false, error: String((e && e.message) || e) };
+      }
+    }
     if (channel === 'mem:status') {
       return { ok: true, data: memWatcher.status() };
     }

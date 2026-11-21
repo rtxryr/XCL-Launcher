@@ -1,7 +1,9 @@
 /* ------------------------------------------------------------------
- * patch/200-misc.js — 按钮填充 / 扇形快捷菜单 / 打字机 / 拖拽刷新
- * 参考 uimotion.fyi：Button Fill（悬停先表意）、Radial FAB（扇形展开）、
- *                    Typewriter（逐字）、Pull to Refresh（拉一下才刷新）
+ * patch/200-misc.js — 按钮填充 / 右侧快捷工具栏 / 打字机 / 拖拽刷新
+ * 参考 uimotion.fyi：Button Fill（悬停先表意）、Typewriter（逐字）、
+ *                    Pull to Refresh（拉一下才刷新）
+ * 2026-11-19：右下角「+」扇形 FAB 下线，改为常驻竖排工具栏 + 品牌标识，
+ *             提示条合并为单例，消除悬停重叠；命令面板图标重画（原图标像虫）。
  * ------------------------------------------------------------------ */
 (function () {
   'use strict';
@@ -25,33 +27,44 @@
       '.m200-fill:hover::after{transform:scaleX(1)}',
       'html[data-motion="off"] .m200-fill::after{transition:none}',
 
-      /* ---------- FAB ---------- */
-      '@keyframes m200FabIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}',
-      '#m200Fab{position:fixed;right:26px;bottom:26px;z-index:8000;width:54px;height:54px;',
-      '  border-radius:999px;border:none;cursor:pointer;display:grid;place-items:center;',
-      '  background:var(--accent);color:var(--accent-ink);',
-      '  box-shadow:0 18px 40px -14px var(--accent-line),0 2px 8px rgba(0,0,0,.18);',
-      '  animation:m200FabIn calc(.4s / var(--m-speed,1)) cubic-bezier(.2,1.2,.4,1) both;',
-      '  transition:transform calc(.3s / var(--m-speed,1)) cubic-bezier(.34,1.3,.64,1),box-shadow calc(.3s / var(--m-speed,1)) ease}',
-      '#m200Fab:hover{transform:scale(1.06)}',
-      '#m200Fab svg{width:22px;height:22px;transition:transform calc(.32s / var(--m-speed,1)) cubic-bezier(.34,1.3,.64,1)}',
-      '#m200Fab.on svg{transform:rotate(45deg)}',
-      '.m200-act{position:fixed;right:26px;bottom:26px;width:46px;height:46px;border-radius:999px;',
-      '  border:1px solid var(--stroke-2);background:var(--panel-2);color:var(--txt);',
-      '  display:grid;place-items:center;cursor:pointer;z-index:7999;',
-      '  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);',
-      '  box-shadow:0 14px 30px -14px var(--shadow-2);',
-      '  transform:translate3d(0,0,0) scale(.2);opacity:0;pointer-events:none;',
-      '  transition:transform calc(.38s / var(--m-speed,1)) cubic-bezier(.34,1.3,.64,1),opacity calc(.22s / var(--m-speed,1)) ease}',
-      '.m200-act svg{width:18px;height:18px}',
-      '#m200Fab.on ~ .m200-act{opacity:1;pointer-events:auto}',
-      '.m200-act .m200-tip{position:absolute;right:56px;top:50%;transform:translateY(-50%) translateX(6px);',
-      '  white-space:nowrap;padding:6px 11px;border-radius:999px;background:var(--tip-bg);',
-      '  color:var(--txt);font-size:11.5px;border:1px solid var(--stroke-2);',
-      '  opacity:0;pointer-events:none;transition:opacity calc(.18s / var(--m-speed,1)) ease,transform calc(.18s / var(--m-speed,1)) ease}',
-      '.m200-act:hover .m200-tip{opacity:1;transform:translateY(-50%) translateX(0)}',
-      'html[data-motion="off"] .m200-act{transition:none}',
-      'html[data-motion="off"] #m200Fab{animation:none}',
+      /* ---------- 右侧快捷工具栏（替代原「+」扇形 FAB） ---------- */
+      /* 入场动画只做位移与缩放：把 opacity 写进 keyframes 会因 fill-mode:both
+         一直压住内联样式，导致「内存提示出现时把工具栏淡出」永远无效 */
+      '@keyframes m200DockIn{from{transform:translateY(10px) scale(.96)}to{transform:none}}',
+      '#m200Dock{position:fixed;right:20px;bottom:20px;z-index:8000;',
+      '  display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px;',
+      '  border-radius:20px;background:var(--panel-2);border:1px solid var(--stroke-2);',
+      '  backdrop-filter:blur(22px) saturate(150%);-webkit-backdrop-filter:blur(22px) saturate(150%);',
+      '  box-shadow:0 18px 44px -22px var(--shadow-2),inset 0 1px 0 var(--panel-3);',
+      '  opacity:.62;transform:translate3d(0,0,0);',
+      '  transition:opacity calc(.26s / var(--m-speed,1)) ease,box-shadow calc(.26s / var(--m-speed,1)) ease;',
+      '  animation:m200DockIn calc(.5s / var(--m-speed,1)) cubic-bezier(.2,1.1,.4,1) both;',
+      '  will-change:opacity}',
+      '#m200Dock:hover,#m200Dock:focus-within{opacity:1;box-shadow:0 22px 52px -22px var(--shadow-2),inset 0 1px 0 var(--panel-3)}',
+      /* 品牌标识：不再用「+」，避免暗示「新建」 */
+      '#m200Dock .m200-brand{width:30px;height:30px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;',
+      '  color:var(--accent);background:linear-gradient(150deg,var(--accent-soft),transparent);',
+      '  border:1px solid var(--accent-line)}',
+      '#m200Dock .m200-brand svg{width:17px;height:17px}',
+      '#m200Dock .m200-div{width:16px;height:1px;margin:2px 0 3px;background:var(--stroke);flex:0 0 auto}',
+      '.m200-dock-btn{position:relative;width:34px;height:34px;flex:0 0 auto;border:none;border-radius:12px;',
+      '  background:transparent;color:var(--txt-2);display:grid;place-items:center;cursor:pointer;padding:0;',
+      '  transition:background calc(.2s / var(--m-speed,1)) ease,color calc(.2s / var(--m-speed,1)) ease,',
+      '    transform calc(.2s / var(--m-speed,1)) cubic-bezier(.34,1.3,.64,1)}',
+      '.m200-dock-btn svg{width:17px;height:17px}',
+      '.m200-dock-btn:hover{background:var(--accent-soft);color:var(--accent);transform:translateY(-1px)}',
+      '.m200-dock-btn:active{transform:scale(.93)}',
+      '.m200-dock-btn:focus-visible{outline:2px solid var(--accent-line);outline-offset:1px}',
+      /* 共用一个提示条：只有一条，永远不会互相压住 */
+      '#m200DockTip{position:fixed;right:80px;z-index:8001;padding:6px 11px;border-radius:999px;',
+      '  white-space:nowrap;font-size:11.5px;line-height:1.2;color:var(--txt);',
+      '  background:var(--tip-bg,var(--panel-2));border:1px solid var(--stroke-2);',
+      '  box-shadow:0 12px 26px -18px var(--shadow-2);pointer-events:none;opacity:0;',
+      '  transform:translateY(-50%) translateX(6px);',
+      '  transition:opacity calc(.16s / var(--m-speed,1)) ease,transform calc(.16s / var(--m-speed,1)) ease}',
+      '#m200DockTip.on{opacity:1;transform:translateY(-50%) translateX(0)}',
+      'html[data-motion="off"] #m200Dock{animation:none;transition:none}',
+      'html[data-motion="off"] .m200-dock-btn,html[data-motion="off"] #m200DockTip{transition:none}',
 
       /* ---------- 打字机 ---------- */
       '@keyframes m200Blink{0%,49%{opacity:1}50%,100%{opacity:0}}',
@@ -96,16 +109,24 @@
     }, true);
   }
 
-  /* ================= 扇形 FAB ================= */
-  var fabOpen = false;
-  var acts = [];
+  /* ================= 快捷工具栏（右侧竖排，常驻） ================= */
+  var dockActs = [];
+
+  /* 品牌标识：等轴方块（三个可见面）—— 对应 craft 的方块本体。
+     不用「方框里一个 X」：小尺寸下容易被读成关闭按钮。 */
+  var BRAND_SVG = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
+    '<path d="M12 2.9 20.3 7.7v8.6L12 21.1 3.7 16.3V7.7Z" ' +
+    'stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' +
+    '<path d="M12 12 3.7 7.7M12 12l8.3-4.3M12 12v9.1" ' +
+    'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>' +
+    '</svg>';
 
   function makeActs() {
     var list = [];
 
     var a1 = {
       label: '回到顶部',
-      icon: '<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>',
+      icon: '<path d="M12 18.4V6.2"/><path d="m6.4 11 5.6-5.6 5.6 5.6"/><path d="M5 20.4h14"/>',
       run: function () {
         var p = doc.getElementById('pages');
         if (p) p.scrollTo({ top: 0, behavior: 'smooth' });
@@ -119,8 +140,10 @@
     a1.exec = a1.run;
 
     var a2 = {
+      /* 原先是两个 3px 半径的弧，18px 下糊成一条虫；换成「面板 + 两行条目」 */
       label: '命令面板',
-      icon: '<path d="M9 6h6a3 3 0 1 0-3-3 3 3 0 0 0-3 3v12a3 3 0 1 0 3 3 3 3 0 0 0 3-3V6"/><path d="M6 9h12M6 15h12"/>',
+      icon: '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="4"/>' +
+        '<path d="M7.6 9.4h8.8M7.6 13.1h5.2"/>',
       run: function () {
         try {
           var ev = new KeyboardEvent('keydown', {
@@ -134,7 +157,8 @@
 
     var a3 = {
       label: '打包诊断',
-      icon: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+      icon: '<rect x="3.6" y="6.4" width="16.8" height="13.2" rx="3"/>' +
+        '<path d="M3.6 10.4h16.8"/><path d="M9.8 6.4V4.4h4.4v2"/>',
       run: function () {
         var nav = doc.querySelector('.rail-btn[data-page="feedback"]');
         if (nav) nav.click();
@@ -149,78 +173,65 @@
     return list;
   }
 
-  function buildFab() {
-    if (doc.getElementById('m200Fab')) return;
+  /* 只保留一个提示条：悬停哪个按钮就挪到哪个按钮左侧，
+     同一时刻只存在一条，结构上不可能互相压住。 */
+  function showTip(btn, label) {
+    var tip = doc.getElementById('m200DockTip');
+    if (!tip) return;
+    var r = btn.getBoundingClientRect();
+    tip.textContent = label;
+    tip.style.top = (r.top + r.height / 2).toFixed(1) + 'px';
+    tip.classList.add('on');
+  }
+
+  function hideTip() {
+    var tip = doc.getElementById('m200DockTip');
+    if (tip) tip.classList.remove('on');
+  }
+
+  function buildDock() {
+    if (doc.getElementById('m200Dock')) return;
     if (window.innerWidth < 1100) return;
 
-    var fab = doc.createElement('button');
-    fab.id = 'm200Fab';
-    fab.type = 'button';
-    fab.setAttribute('aria-label', '快捷操作');
-    fab.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
-      'stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>';
+    var dock = doc.createElement('div');
+    dock.id = 'm200Dock';
+    dock.setAttribute('role', 'toolbar');
+    dock.setAttribute('aria-label', '快捷工具栏');
+    dock.innerHTML = '<div class="m200-brand" aria-hidden="true">' + BRAND_SVG + '</div>' +
+      '<div class="m200-div" aria-hidden="true"></div>';
+
+    var tip = doc.createElement('div');
+    tip.id = 'm200DockTip';
+    tip.setAttribute('role', 'presentation');
+    doc.body.appendChild(tip);
 
     var defs = makeActs();
-    acts = defs.map(function (d, i) {
+    dockActs = defs.map(function (d) {
       var b = doc.createElement('button');
       b.type = 'button';
-      b.className = 'm200-act';
-      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" ' +
-        'stroke-linecap="round" stroke-linejoin="round">' + d.icon + '</svg>' +
-        '<span class="m200-tip">' + d.label + '</span>';
+      b.className = 'm200-dock-btn';
+      b.setAttribute('aria-label', d.label);
+      b.setAttribute('title', '');   /* 关掉原生 tooltip，避免与自定义提示重复 */
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round">' + d.icon + '</svg>';
       b.addEventListener('click', function (e) {
         e.stopPropagation();
-        closeFab();
+        hideTip();
         try { d.run(); } catch (err) { console.warn('[patch 200] action failed', err); }
       });
+      b.addEventListener('mouseenter', function () { showTip(b, d.label); });
+      b.addEventListener('mouseleave', hideTip);
+      b.addEventListener('focus', function () { showTip(b, d.label); });
+      b.addEventListener('blur', hideTip);
+      dock.appendChild(b);
       return b;
     });
 
-    doc.body.appendChild(fab);
-    acts.forEach(function (b) { doc.body.appendChild(b); });
-
-    fab.addEventListener('click', function (e) {
-      e.stopPropagation();
-      fabOpen ? closeFab() : openFab();
-    });
-
-    doc.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && fabOpen) closeFab();
-    });
-    doc.addEventListener('click', function (e) {
-      if (!fabOpen) return;
-      if (e.target.closest && (e.target.closest('#m200Fab') || e.target.closest('.m200-act'))) return;
-      closeFab();
-    });
+    doc.body.appendChild(dock);
 
     /* 底部留白，别压住内容 */
     var pages = doc.getElementById('pages');
     if (pages) pages.style.paddingBottom = '104px';
-  }
-
-  function openFab() {
-    fabOpen = true;
-    var fab = doc.getElementById('m200Fab');
-    if (fab) fab.classList.add('on');
-    var R = 82;
-    acts.forEach(function (b, i) {
-      /* -90° ~ -170°，围绕左下弧线 */
-      var ang = (-90 - i * 40) * Math.PI / 180;
-      var x = Math.cos(ang) * R;
-      var y = Math.sin(ang) * R;
-      b.style.transitionDelay = (i * 45) + 'ms';
-      b.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(1)';
-    });
-  }
-
-  function closeFab() {
-    fabOpen = false;
-    var fab = doc.getElementById('m200Fab');
-    if (fab) fab.classList.remove('on');
-    acts.forEach(function (b) {
-      b.style.transitionDelay = '0ms';
-      b.style.transform = 'translate3d(0,0,0) scale(.2)';
-    });
   }
 
   /* ================= 打字机 ================= */
@@ -326,29 +337,28 @@
   function boot() {
     injectCss();
     bindFill();
-    buildFab();
+    buildDock();
     bindPull();
 
-    window.M200 = { type: type, openFab: openFab, closeFab: closeFab };
+    /* 旧接口保留：其它补丁若调用也不会炸（扇形展开已下线） */
+    window.M200 = {
+      type: type,
+      openFab: function () {},
+      closeFab: function () {}
+    };
 
-    /* 窗口变窄时撤掉 FAB（它会挡内容） */
+    /* 窗口变窄时撤掉工具栏（它会挡内容） */
     var lastW = window.innerWidth;
     window.addEventListener('resize', function () {
       if (Math.abs(window.innerWidth - lastW) < 40) return;
       lastW = window.innerWidth;
-      var fab = doc.getElementById('m200Fab');
-      if (!fab) { buildFab(); return; }
-      if (window.innerWidth < 1100) {
-        if (fabOpen) closeFab();
-        fab.style.display = 'none';
-        acts.forEach(function (b) { b.style.display = 'none'; });
-      } else {
-        fab.style.display = '';
-        acts.forEach(function (b) { b.style.display = ''; });
-      }
+      var dock = doc.getElementById('m200Dock');
+      if (!dock) { buildDock(); return; }
+      dock.style.display = window.innerWidth < 1100 ? 'none' : '';
+      if (window.innerWidth < 1100) hideTip();
     }, { passive: true });
 
-    console.log('[patch 200] ready · FAB actions:', acts.length);
+    console.log('[patch 200] ready · dock actions:', dockActs.length);
   }
 
   if (doc.readyState === 'loading') {
